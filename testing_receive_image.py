@@ -1,19 +1,16 @@
-from receive_image import get_and_save_image, serial_conf
+from device_connection import ArduinoConnection
 
 
 def testing(card_name, reps):
-    wd = 320    # change requires arduino code modification
-    hg = 240    # change requires arduino code modification
-    rdy = '*RDY*'   # change requires arduino code modification
 
-    ser = serial_conf('COM2')
+    ard_conn = ArduinoConnection()
 
     for i in range(reps):
         img_name = f'testy/{card_name}{i}.bmp'
-        get_and_save_image(ser, img_name, wd, hg, rdy)
+        ard_conn.get_and_save_image(img_name)
         print(f'Saved image nr {i}')
 
-    ser.close()
+    ard_conn.ser.close()
 
 
 def test1():
@@ -36,4 +33,4 @@ def test4():
     testing('Brak', 20)
 
 
-# test1()
+test4()
