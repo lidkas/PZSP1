@@ -8,7 +8,7 @@ from device_connection import ArduinoConnection
 from configuration import color_model_path, value_model_path
 from serial import SerialException
 import tensorflow as tf
-import time
+
 
 # wartości punktowe kart
 scores = {'9': 0, 'J': 2, 'Q': 3, 'K': 4, '10': 10, 'A': 11}
@@ -42,6 +42,7 @@ card_given = False
 musik_received = False
 musik_removed = False
 removed = 0
+swapped_objects = False
 
 # inicjalizacja pygame, ustawienia wyświetlanych napisów
 pygame.init()
@@ -218,7 +219,7 @@ def draw_auction(_mouse_x, _mouse_y, player_me, my_curr_bid):
     button_subs.draw(screen)
 
     _taken_action = 'wait'
-    if  max_bid > curr_bid:
+    if max_bid > curr_bid:
         button_bid = Button((127, 127, 127), 500, 350, 120, 60, 'Zalicytuj')
         if button_bid.is_over(_mouse_x, _mouse_y):
             _taken_action = 'bid'
@@ -280,21 +281,19 @@ def change_color_for_id(suit):
             suit = colors[suit]
     return suit
 
-"""
-Funkcje związane z musikami
-"""
 
+# musiki
 def append_to_musik():
     x = 150
-    list_1 = game.select_cards(3)[0]
-    list_2 = game.select_cards(4)[0]
-    for each_id in list_1:
-        card = Card(each_id, x, 250)
+    list_1 = game.select_cards(3)
+    list_2 = game.select_cards(4)
+    for each in list_1:
+        card = Card(each[0], x, 250)
         x += 50
         musik1.append(card)
     x = 550
-    for each_id in list_2:
-        card = Card(each_id, x, 250)
+    for each in list_2:
+        card = Card(each[0], x, 250)
         x += 50
         musik2.append(card)
 
@@ -314,7 +313,8 @@ def select_musik(mouse, player):
             add_musik(player,2)
             musik_received = True
 
-def add_musik(player,which_one):
+
+def add_musik(player, which_one):
     owner = game.get_ownership()
     if which_one == 1:
         for card in musik1:
@@ -329,21 +329,22 @@ def receive_musik(mouse, player):
     show_musik()
     select_musik(mouse, player)
 
-"""
-Usuniecie dwóch kart z ręki
-"""
 
-def select_card_to_remove(player, mouse, removed):
+# usunięcie 2 kart z ręki
+def select_card_to_remove(player, mouse):
+    global removed
     x, y = mouse
     if mouse_x is not None:
         for card in player.cards:
-            if card.positionx < x < card.postionx + 100 and card.postiony < y < card.positiony + 100:
+            if card.positionx < x < card.positionx + 100 and card.positiony < y < card.positiony + 100:
                 remove_from_hand(player, card)
                 removed += 1
+
 
 def remove_from_hand(player, card):
     player.cards.remove(card)
     game.change_card_owner(3,card.card_id)
+
 
 # przekazujemy globale jako parametry funkcji
 def player_scores(_screen, _player1, _player2):
@@ -429,7 +430,6 @@ def check_if_oponnent_card(player):
                 player.remove_from_player(card)
 
 
-# !!!! missing dispaly score
 def set_game_info(player, turn):
     game.set_game_info(1, change_color_for_id(player.selected_card.suit))
     game.set_game_info(3, turn)
@@ -443,7 +443,7 @@ def set_who_start_round(winner):
         game.set_game_info(3, 2)
 
 
-# god level set method, korzysta z globala
+# korzysta z globala
 def set_round(_round):
     game.set_game_info(2, _round)
 
@@ -475,21 +475,25 @@ def round_playthrough(player_me, opponent, mouse_pos):
         game.change_card_owner(4+game.get_ownership(), player_me.selected_card.card_id)
         game.set_game_info(3, 3 - game.get_ownership())
 
+
 def next_deal():
     # wykasować stare karty graczy lokalnie 
     # wykasować stare karty graczy z bazy danych
-    
     # od nowa:
         # musiki
         # licytacja
-        # gra
+    # eh
     pass
 
+
+# rozwiązanie sytuacji, kiedy tylko jednemu graczowi kończą się karty przez błąd synchronizacji
 def is_any_hand_empty():
     if len(player1.cards) == 0 or len(player2.cards) == 0:
         return True
-    return False 
+    return False
 
+
+# koniec pracy programu
 def terminate_game():
     global running
     pygame.quit()
@@ -500,6 +504,7 @@ def terminate_game():
     quit()
 
 
+# GUI końca gry
 def end_game(_mouse_x, _mouse_y):
     if game.look_for_winner() == 3:
         text_endgame = 'draw'
@@ -514,31 +519,6 @@ def end_game(_mouse_x, _mouse_y):
     while running:
         if close_button.is_over(_mouse_x, _mouse_y):
             terminate_game()
-
-"""
-def device_choice_screen(_mouse_x, _mouse_y, _ard_conn):
-
-    if button_no_deal.is_over(_mouse_x, _mouse_y):
-        deal_with_device = False
-    if button_yes.is_over(_mouse_x, _mouse_y):
-        screen.fill(bg_green)
-        add_text(text_deal_choice, 200, 450)
-        button_yes_deal.draw(screen)
-        button_no_deal.draw(screen)
-        try:
-            _ard_conn = ArduinoConnection()
-            models = tensorflow_load_models()
-            return True, _ard_conn, models, deal_with_device
-        except SerialException:
-            add_text(text_no_device, 300, 500)
-    if button_no.is_over(_mouse_x, _mouse_y):
-        screen.fill(bg_green)
-        return False, _ard_conn, None, False
-    add_text(text_device_choice, 300, 150)
-    button_yes.draw(screen)
-    button_no.draw(screen)
-    return use_device, _ard_conn, None, deal_with_device
-"""
 
 
 # wymusić koniec rundy, jeżeli ktokolwiek lokalnie ma 0 kart
@@ -578,50 +558,60 @@ while running:
             auc_winner = game.get_game_info(6)[0][0]
             
             # ustalamy karty po stronie klienta i karty przeciwnika dla przejrzystosci
-            if game.get_ownership() == 1:
-                player_me = player1
-                opponent = player2
-            else:
-                player_me = player2
-                opponent = player1
+            if game.get_ownership() == 2 and not swapped_objects:
+                temp = player1
+                player1 = player2
+                player2 = temp
+                swapped_objects = True
+                del temp
 
             # Otrzymywanie musików
             if game.get_ownership() == auc_winner and not musik_received:
-                player_me.player_cards(screen, True)
-                receive_musik((mouse_x, mouse_y),player_me)
+                player1.player_cards(screen, True)
+                receive_musik((mouse_x, mouse_y),player1)
             elif game.get_ownership() == auc_winner and not musik_removed:
                 if removed < 2:
-                    player_me.player_cards(screen, True)
-                    select_card_to_remove(player_me, (mouse_x, mouse_y), removed)
+                    player1.player_cards(screen, True)
+                    select_card_to_remove(player1, (mouse_x, mouse_y))
                 else:
                     musik_removed = True
             else:
+                
                 # jeżeli tura w db zgadza się z twoim numerem odpalana jest funkcja gry
                 if who_playing == game.get_ownership():
-                    round_playthrough(player_me, opponent, (mouse_x, mouse_y))
+                    screen.blit(text_render_player_one_turn, (350, 500))
+                    check_if_oponnent_card(player2)
+                    select_card(player1, (mouse_x, mouse_y))
+                    check_selected_card(player2, player1)
+                    player1.remove_from_player(player1.selected_card)
+                    if player1.selected_card:
+                        # 4 + game.get_ownership() // czyli 1 lub dwa, da nam to karte gracza 1 lub 2
+                        game.change_card_owner(4+game.get_ownership(), player1.selected_card.card_id)
+                        game.set_game_info(3, 3 - game.get_ownership())
+                
+                # wyświetlanie kart
+                if player2.selected_card:
+                    play_oponnent_card(screen, player2)
+                if player1.selected_card:
+                    play_selected_card(screen, player1)
 
-                if opponent.selected_card:
-                    play_oponnent_card(screen, opponent)
-                if player_me.selected_card:
-                    play_selected_card(screen, player_me)
-
-                if get_player_turn() == 3 - game.get_ownership():
+                if get_player_turn() == (3 - game.get_ownership()):
                     screen.blit(text_render_player_two_turn, (350, 100))
 
-                player_me.player_cards(screen, True)
-                opponent.player_cards(screen, False)
-                player_scores(screen, player1, player2)
+                player1.player_cards(screen, True)
+                player2.player_cards(screen, False)
+            player_scores(screen, player1, player2)
+            if player1.selected_card is not None and player2.selected_card is not None:
+                end_round(player1, player2)
 
-                if player_me.selected_card is not None and opponent.selected_card is not None:
-                    end_round(player_me, opponent)
 
-                if is_any_hand_empty:
-                    next_deal()
-                    
+            if is_any_hand_empty:
+                next_deal()
+        
+        # zakończenie gry, jeżeli ktoś uzyskał 1000 pkt
         if game.look_for_winner():
             end_game(mouse_x, mouse_y)
         
-
     pygame.display.update()
 
 if use_device:
